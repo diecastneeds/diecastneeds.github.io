@@ -43,10 +43,12 @@ for p in px:
     cost = p.findtext("price","0") or p.findtext("calculated_price","0") or "0"
     sale_price = markup_price(cost)
     if not sale_price: continue
+    if float(sale_price) > 699.99: continue
     imgs = []
     for key in ["image","image_1","image_2","image_3","image_4","image_5"]:
         v = (p.findtext(key,"") or "").strip()
         if v: imgs.append(v)
+    if not imgs: continue
     products.append({
         "c": p.findtext("code","").strip(),
         "n": (p.findtext("name","") or p.findtext("n","")).strip(),
