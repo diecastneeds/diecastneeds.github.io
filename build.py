@@ -86,19 +86,21 @@ html_out = f"""<!DOCTYPE html>
 html{{font-size:16px;}}
 body{{background:var(--bg);color:var(--text);font-family:\"DM Sans\",sans-serif;min-height:100vh;overflow-x:hidden;}}
 header{{background:var(--surface);border-bottom:2px solid var(--pink);padding:10px 20px;padding-top:max(10px,env(safe-area-inset-top));display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:200;}}
-.logo-img{{height:50px;width:50px;object-fit:contain;border-radius:8px;flex-shrink:0;}}
+.logo-img{{height:72px;width:72px;object-fit:contain;border-radius:10px;flex-shrink:0;}}
 .logo-text{{display:flex;flex-direction:column;flex:1;min-width:0;}}
 .site-name{{font-family:\"Bebas Neue\",sans-serif;font-size:1.5rem;letter-spacing:3px;color:var(--white);line-height:1;white-space:nowrap;}}
 .site-name span{{color:var(--pink);}}
 .site-sub{{font-size:0.6rem;color:var(--muted);letter-spacing:2.5px;text-transform:uppercase;margin-top:1px;}}
 .header-right{{display:flex;align-items:center;gap:8px;flex-shrink:0;}}
 .header-count{{background:var(--pink-glow);border:1px solid rgba(255,45,107,0.3);color:var(--pink);font-size:0.65rem;letter-spacing:1.5px;text-transform:uppercase;padding:5px 10px;border-radius:99px;white-space:nowrap;}}
+.free-ship-badge{{background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:var(--green);font-size:0.65rem;letter-spacing:1.2px;text-transform:uppercase;padding:5px 10px;border-radius:99px;white-space:nowrap;font-weight:600;}}
+.ship-tag{{font-size:0.62rem;color:var(--green);letter-spacing:.8px;margin-top:4px;font-weight:500;}}
 .cart-btn{{position:relative;background:var(--pink);border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:\"DM Sans\",sans-serif;font-size:0.85rem;font-weight:500;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background .15s;}}
 .cart-btn:hover{{background:var(--pink-dim);}}
 .cart-badge{{background:#fff;color:var(--pink);font-size:0.65rem;font-weight:700;width:18px;height:18px;border-radius:50%;display:none;align-items:center;justify-content:center;}}
 .cart-badge.show{{display:flex;}}
-@media(max-width:420px){{.site-name{{font-size:1.2rem;}}.header-count{{display:none;}}}}
-.controls{{padding:12px 16px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:72px;z-index:100;}}
+@media(max-width:420px){{.site-name{{font-size:1.2rem;}}.header-count{{display:none;}}.free-ship-badge{{display:none;}}}}
+.controls{{padding:12px 16px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:92px;z-index:100;}}
 .row{{display:flex;gap:8px;}}
 .sw{{flex:1;position:relative;}}
 .sw::before{{content:\"⌕\";position:absolute;left:12px;top:50%;transform:translateY(-54%);color:var(--muted);font-size:1.1rem;pointer-events:none;}}
@@ -238,9 +240,9 @@ select:focus{{border-color:var(--pink);outline:none;}}
   <img class=\"logo-img\" src=\"{logo_src}\" alt=\"DiecastNeeds\">
   <div class=\"logo-text\">
     <span class=\"site-name\">DiecastNeeds<span>.com</span></span>
-    <span class=\"site-sub\">Catalog</span>
   </div>
   <div class=\"header-right\">
+    <span class=\"free-ship-badge\">🚚 Free Shipping!</span>
     <span class=\"header-count\" id=\"tb\">— Models</span>
     <button class=\"cart-btn\" onclick=\"openDrawer()\">🛒 Cart<span class=\"cart-badge\" id=\"cart-badge\">0</span></button>
   </div>
@@ -336,10 +338,10 @@ function rG(){{
   g.innerHTML=sl.map((p,i)=>{{
     const idx=(pg-1)*PS+i;
     const img=p.imgs&&p.imgs.length?p.imgs[0]:"";
-    const ih=img?`<img src="${{e(img)}}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\"ni\\">🚗</div>'">`:"<div class='ni'>🚗</div>";
+    const ih=img?`<img src="${{e(img)}}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.insertAdjacentHTML('afterbegin','<div class=ni>🚗</div>')">`:"<div class='ni'>🚗</div>";
     const ic=p.imgs&&p.imgs.length>1?`<span class="ic">📷 ${{p.imgs.length}}</span>`:"";
     const inCart=isInCart(p.c);
-    return `<div class="card" onclick="openM(${{idx}})"><div class="iw">${{ih}}<span class="bt">${{e(p.b)}}</span>${{ic}}<span class="in-cart-flag${{inCart?" show":""}}" id="flag-${{e(p.c)}}">✓ In Cart</span></div><div class="cb"><div class="ct">${{e(p.n)}}</div><div class="sku-row"><span class="sku-label">SKU#</span><span class="sku-val">${{e(p.c)}}</span></div><div class="price-row"><span class="pr">${{p.p?"$"+p.p:"—"}}</span></div><button class="add-btn${{inCart?" added":""}}" id="addbtn-${{e(p.c)}}" onclick="event.stopPropagation();toggleCart(${{idx}})">${{inCart?"✓ In Cart":"+ Add to Cart"}}</button></div></div>`;
+    return `<div class="card" onclick="openM(${{idx}})"><div class="iw">${{ih}}<span class="bt">${{e(p.b)}}</span>${{ic}}<span class="in-cart-flag${{inCart?" show":""}}" id="flag-${{e(p.c)}}">✓ In Cart</span></div><div class="cb"><div class="ct">${{e(p.n)}}</div><div class="sku-row"><span class="sku-label">SKU#</span><span class="sku-val">${{e(p.c)}}</span></div><div class="price-row"><span class="pr">${{p.p?"$"+p.p:"—"}}</span></div><div class="ship-tag">🚚 Free Shipping</div><button class="add-btn${{inCart?" added":""}}" id="addbtn-${{e(p.c)}}" onclick="event.stopPropagation();toggleCart(${{idx}})">${{inCart?"✓ In Cart":"+ Add to Cart"}}</button></div></div>`;
   }}).join("");
 }}
 function rP(){{
