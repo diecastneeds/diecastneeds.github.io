@@ -8,11 +8,13 @@ Daily update: push new products.xml to GitHub — auto-rebuilds in ~60s.
 import xml.etree.ElementTree as ET
 import json, math, html, re, os, base64
 
+SCALE_RE = re.compile(r'1/(\d+)')
+
 def markup_price(cost_str):
     try:
         cost = float(cost_str)
         if cost <= 0: return ""
-        marked = cost * 1.25
+        marked = cost * 1.34
         rounded = math.ceil(marked) - 0.01
         if rounded < marked: rounded += 1
         return f"{rounded:.2f}"
@@ -49,12 +51,16 @@ for p in px:
         v = (p.findtext(key,"") or "").strip()
         if v: imgs.append(v)
     if not imgs: continue
+    name = (p.findtext("name","") or p.findtext("n","")).strip()
+    sm = SCALE_RE.search(name)
+    scale = ("1/" + sm.group(1)) if sm else ""
     products.append({
         "c": p.findtext("code","").strip(),
-        "n": (p.findtext("name","") or p.findtext("n","")).strip(),
+        "n": name,
         "b": p.findtext("brand","").strip(),
         "p": sale_price,
         "imgs": imgs,
+        "sz": scale,
     })
     descs.append(clean_desc(p.findtext("description","")))
 
@@ -69,6 +75,10 @@ chunks = [products[i:i+CHUNK] for i in range(0, len(products), CHUNK)]
 p_scripts = "\n".join([f"W.push({json.dumps(c, separators=(',',':'))});" for c in chunks])
 brands = sorted(set(p["b"] for p in products if p["b"]))
 brands_json = json.dumps(brands)
+
+# Sort scales numerically by denominator
+all_scales = sorted(set(p["sz"] for p in products if p["sz"]), key=lambda s: int(s.split("/")[1]))
+scales_json = json.dumps(all_scales)
 total = len(products)
 
 SQUARE_PAYMENT_LINK = "https://square.link/u/K3hUR5QG"
@@ -253,6 +263,7 @@ select:focus{{border-color:var(--pink);outline:none;}}
   <div class=\"sw\"><input type=\"text\" id=\"q\" placeholder=\"Search name, brand, SKU…\" oninput=\"onF()\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"off\" spellcheck=\"false\"></div>
   <div class=\"row\">
     <select id=\"bs\" onchange=\"onF()\"><option value=\"\">All Brands</option></select>
+    <select id=\"szs\" onchange=\"onF()\"><option value=\"\">All Sizes</option></select>
     <select id=\"ss\" onchange=\"onF()\"><option value=\"name\">Name A–Z</option><option value=\"pa\">Price ↑</option><option value=\"pd\">Price ↓</option><option value=\"sku\">SKU</option></select>
   </div>
   <div class=\"info\" id=\"inf\"></div>
@@ -326,8 +337,9 @@ function onF(){{pg=1;aF();}}
 function aF(){{
   const q=document.getElementById("q").value.toLowerCase();
   const br=document.getElementById("bs").value;
+  const sz=document.getElementById("szs").value;
   const so=document.getElementById("ss").value;
-  fil=PRODUCTS.filter(p=>(!q||p.n.toLowerCase().includes(q)||p.b.toLowerCase().includes(q)||p.c.toLowerCase().includes(q))&&(!br||p.b===br));
+  fil=PRODUCTS.filter(p=>(!q||p.n.toLowerCase().includes(q)||p.b.toLowerCase().includes(q)||p.c.toLowerCase().includes(q))&&(!br||p.b===br)&&(!sz||p.sz===sz));
   fil.sort((a,b)=>so==="pa"?+a.p-+b.p:so==="pd"?+b.p-+a.p:so==="sku"?a.c.localeCompare(b.c):a.n.localeCompare(b.n));
   document.getElementById("inf").textContent=fil.length.toLocaleString()+" products found";
   rG();rP();
@@ -447,6 +459,9 @@ setTimeout(()=>{{
   const brands={brands_json};
   const sel=document.getElementById("bs");
   brands.forEach(b=>{{const o=document.createElement("option");o.value=b;o.textContent=b;sel.appendChild(o);}});
+  const scales={scales_json};
+  const szsel=document.getElementById("szs");
+  scales.forEach(s=>{{const o=document.createElement("option");o.value=s;o.textContent=s+" Scale";szsel.appendChild(o);}});
   fil=[...PRODUCTS];aF();updateCartUI();
   document.getElementById("loader").style.display="none";
 }},50);
