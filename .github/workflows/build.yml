@@ -5,6 +5,7 @@ on:
     paths:
       - 'products.xml'
       - 'logo.png'
+      - 'build.py'
 
 permissions:
   contents: write
