@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'products.xml'
+      - 'logo.png'
 
 permissions:
   contents: write
@@ -11,22 +12,16 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
-
-      - name: Build site
-        run: python build.py
-
-      - name: Commit and push changes
+          python-version: '3.11'
+      - run: python build.py
+      - name: Commit output
         run: |
           git config user.name "github-actions"
-          git config user.email "actions@github.com"
+          git config user.email "github-actions@github.com"
           git add index.html descs.json
-          git commit -m "Auto-build catalog" || echo "No changes"
+          git diff --cached --quiet || git commit -m "Rebuild catalog"
           git push
