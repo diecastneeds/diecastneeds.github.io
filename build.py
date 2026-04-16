@@ -71,7 +71,7 @@ brands = sorted(set(p["b"] for p in products if p["b"]))
 brands_json = json.dumps(brands)
 total = len(products)
 
-SQUARE_PAYMENT_LINK = "YOUR_SQUARE_PAYMENT_LINK"
+SQUARE_PAYMENT_LINK = "https://square.link/u/K3hUR5QG"
 
 html_out = f"""<!DOCTYPE html>
 <html lang=\"en\">
