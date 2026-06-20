@@ -1,0 +1,3 @@
+# The raw export is large (~25MB) and exceeds GitHub's web-upload limit.
+# Push products.zip instead — build.py reads the XML directly from the zip.
+products.xml

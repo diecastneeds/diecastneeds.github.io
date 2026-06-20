@@ -1,12 +1,12 @@
 """
 Build script for DiecastNeeds.com Catalog
-- Reads products.xml
-- Applies 25% markup, rounds up to nearest .99
+- Reads the product export (products.zip preferred, products.xml fallback)
+- Applies 30% markup, rounds up to nearest .99
 - Embeds logo.png, outputs index.html + descs.json
-Daily update: push new products.xml to GitHub — auto-rebuilds in ~60s.
+Daily update: push a new products.zip to GitHub — auto-rebuilds in ~60s.
 """
 import xml.etree.ElementTree as ET
-import json, math, html, re, os, base64
+import json, math, html, re, os, base64, zipfile
 
 SCALE_RE = re.compile(r'1/(\d+)')
 
@@ -14,7 +14,7 @@ def markup_price(cost_str):
     try:
         cost = float(cost_str)
         if cost <= 0: return ""
-        marked = cost * 1.34
+        marked = cost * 1.30
         rounded = math.ceil(marked) - 0.01
         if rounded < marked: rounded += 1
         return f"{rounded:.2f}"
@@ -33,46 +33,93 @@ if os.path.exists("logo.png"):
         logo_src = "data:image/png;base64," + base64.b64encode(f.read()).decode()
     print("  Logo embedded")
 
-print("Parsing products.xml...")
-tree = ET.parse("products.xml")
-root = tree.getroot()
-px = root.findall("product")
-print(f"  Found {len(px)} products")
+def open_products_xml():
+    """Return a file-like handle to the products XML.
+
+    Prefers products.zip (small enough for GitHub's 25MB upload limit).
+    Falls back to a plain products.xml if no zip is present.
+    """
+    if os.path.exists("products.zip"):
+        z = zipfile.ZipFile("products.zip")
+        xml_name = next(
+            (n for n in z.namelist() if n.lower().endswith(".xml")), None
+        )
+        if not xml_name:
+            raise SystemExit("ERROR: products.zip contains no .xml file")
+        print(f"Reading {xml_name} from products.zip...")
+        return z.open(xml_name)  # streamed, not loaded into memory
+    if os.path.exists("products.xml"):
+        print("Reading products.xml...")
+        return open("products.xml", "rb")
+    raise SystemExit("ERROR: neither products.zip nor products.xml found")
 
 products = []
 descs = []
-for p in px:
+seen = 0
+
+def process_product(p):
+    """Return (product_dict, description) or None if the product is skipped."""
     cost = p.findtext("price","0") or p.findtext("calculated_price","0") or "0"
     sale_price = markup_price(cost)
-    if not sale_price: continue
-    if float(sale_price) > 699.99: continue
+    if not sale_price: return None
+    if float(sale_price) > 699.99: return None
     imgs = []
     for key in ["image","image_1","image_2","image_3","image_4","image_5"]:
         v = (p.findtext(key,"") or "").strip()
         if v: imgs.append(v)
-    if not imgs: continue
+    if not imgs: return None
     name = (p.findtext("name","") or p.findtext("n","")).strip()
     sm = SCALE_RE.search(name)
     scale = ("1/" + sm.group(1)) if sm else ""
-    products.append({
+    return {
         "c": p.findtext("code","").strip(),
         "n": name,
         "b": p.findtext("brand","").strip(),
         "p": sale_price,
         "imgs": imgs,
         "sz": scale,
-    })
-    descs.append(clean_desc(p.findtext("description","")))
+    }, clean_desc(p.findtext("description",""))
 
-print(f"  Processed {len(products)} products")
+src = open_products_xml()
+# Stream product-by-product so we never hold the whole 25MB tree in memory.
+for event, p in ET.iterparse(src, events=("end",)):
+    if p.tag != "product":
+        continue
+    seen += 1
+    result = process_product(p)
+    if result:
+        prod, desc = result
+        products.append(prod)
+        descs.append(desc)
+    p.clear()  # free the parsed element so memory stays flat
 
-with open("descs.json","w",encoding="utf-8") as f:
-    json.dump(descs, f, separators=(",",":"), ensure_ascii=False)
-print(f"  descs.json written ({os.path.getsize('descs.json')//1024}KB)")
+print(f"  Found {seen} products, processed {len(products)}")
 
 CHUNK = 400
+
+# Tag each product with its global index. The description for product i lives
+# at descs/<i // CHUNK>.json position <i % CHUNK>. Storing the index also lets
+# the modal open without an O(n) PRODUCTS.indexOf() scan.
+for i, prod in enumerate(products):
+    prod["i"] = i
+
 chunks = [products[i:i+CHUNK] for i in range(0, len(products), CHUNK)]
 p_scripts = "\n".join([f"W.push({json.dumps(c, separators=(',',':'))});" for c in chunks])
+
+# Write descriptions as small per-chunk files instead of one ~7.7MB JSON, so
+# opening a product only downloads ~1 chunk (a few hundred KB) on demand.
+os.makedirs("descs", exist_ok=True)
+for fn in os.listdir("descs"):           # clear stale chunks from prior builds
+    if fn.endswith(".json"):
+        os.remove(os.path.join("descs", fn))
+desc_chunks = [descs[i:i+CHUNK] for i in range(0, len(descs), CHUNK)]
+for n, dc in enumerate(desc_chunks):
+    with open(f"descs/{n}.json", "w", encoding="utf-8") as f:
+        json.dump(dc, f, separators=(",",":"), ensure_ascii=False)
+print(f"  {len(desc_chunks)} description chunks written to descs/")
+if os.path.exists("descs.json"):         # remove superseded monolithic file
+    os.remove("descs.json")
+
 brands = sorted(set(p["b"] for p in products if p["b"]))
 brands_json = json.dumps(brands)
 
@@ -83,6 +130,16 @@ total = len(products)
 
 SQUARE_PAYMENT_LINK = "https://square.link/u/K3hUR5QG"
 
+# ── Order-notification email (sent from thankyou.html AFTER payment) ──
+# Get a free access key at https://web3forms.com (sign up with the address
+# below). Paste it here, then rebuild. Free tier = 250 orders/month.
+WEB3FORMS_ACCESS_KEY = "dbb6dffa-2621-43ba-8861-b45769091809"
+ORDER_EMAIL = "sales@ultimategarageeventstx.com"
+# Where Square sends the customer after a successful payment. This URL must be
+# entered in your Square Dashboard under the payment link's "Redirect to a
+# website after checkout" setting.
+THANKYOU_URL = "https://diecastneeds.com/thankyou.html"
+
 html_out = f"""<!DOCTYPE html>
 <html lang=\"en\">
 <head>
@@ -91,6 +148,21 @@ html_out = f"""<!DOCTYPE html>
 <meta name=\"apple-mobile-web-app-capable\" content=\"yes\">
 <meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\">
 <title>DiecastNeeds.com Catalog</title>
+<meta name=\"description\" content=\"Shop {total:,}+ diecast model cars, trucks and motorcycles at DiecastNeeds.com. Free shipping on every order. Maisto, Greenlight, Auto World, Hot Wheels and more.\">
+<meta name=\"theme-color\" content=\"#0d0f1a\">
+<link rel=\"icon\" href=\"logo.png\">
+<link rel=\"apple-touch-icon\" href=\"logo.png\">
+<link rel=\"canonical\" href=\"https://diecastneeds.com/\">
+<meta property=\"og:type\" content=\"website\">
+<meta property=\"og:site_name\" content=\"DiecastNeeds.com\">
+<meta property=\"og:title\" content=\"DiecastNeeds.com Catalog\">
+<meta property=\"og:description\" content=\"Shop {total:,}+ diecast models with free shipping on every order.\">
+<meta property=\"og:url\" content=\"https://diecastneeds.com/\">
+<meta property=\"og:image\" content=\"https://diecastneeds.com/logo.png\">
+<meta name=\"twitter:card\" content=\"summary\">
+<meta name=\"twitter:title\" content=\"DiecastNeeds.com Catalog\">
+<meta name=\"twitter:description\" content=\"Shop {total:,}+ diecast models with free shipping on every order.\">
+<meta name=\"twitter:image\" content=\"https://diecastneeds.com/logo.png\">
 <link href=\"https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap\" rel=\"stylesheet\">
 <style>
 :root{{--bg:#0d0f1a;--surface:#13151f;--card:#1a1c2a;--border:#252836;--border2:#2e3148;--pink:#ff2d6b;--pink-dim:#cc1f55;--pink-glow:rgba(255,45,107,0.15);--white:#f5f5f5;--muted:#6b6f85;--text:#e8eaf2;--green:#22c55e;--green-dim:#16a34a;--green-glow:rgba(34,197,94,0.12);}}
@@ -330,7 +402,12 @@ const W=[];
 {p_scripts}
 const PRODUCTS=W.flat();
 const PS=40;
-let fil=[],pg=1,DESCS=null,descLoading=false,pendingIdx=null,openProduct=null,CART=[];
+const DC={CHUNK};
+const DESC_CACHE={{}};
+const CART_KEY="dcn_cart_v1";
+function loadCart(){{try{{const r=localStorage.getItem(CART_KEY);return r?JSON.parse(r):[];}}catch(_){{return[];}}}}
+function saveCart(){{try{{localStorage.setItem(CART_KEY,JSON.stringify(CART));}}catch(_){{}}}}
+let fil=[],pg=1,descLoading=false,pendingIdx=null,openProduct=null,CART=loadCart();
 function e(s){{return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}}
 function fmt(n){{return"$"+parseFloat(n).toFixed(2);}}
 function onF(){{pg=1;aF();}}
@@ -389,6 +466,7 @@ function removeFromCart(code){{
 function changeQty(code,delta){{const item=CART.find(i=>i.c===code);if(!item)return;item.qty=Math.max(1,item.qty+delta);updateCartUI();renderCartItems();}}
 function cartTotal(){{return CART.reduce((s,i)=>s+(parseFloat(i.p)||0)*i.qty,0);}}
 function updateCartUI(){{
+  saveCart();
   const total=CART.reduce((s,i)=>s+i.qty,0);
   const badge=document.getElementById("cart-badge");
   if(total>0){{badge.textContent=total;badge.classList.add("show");}}else badge.classList.remove("show");
@@ -427,18 +505,36 @@ function placeOrder(){{
   if(!CART.length){{errEl.textContent="Your cart is empty.";errEl.classList.add("show");return;}}
   errEl.classList.remove("show");
   const addr2=document.getElementById("co-addr2").value.trim();
-  const note=`${{fname}} ${{lname}} | ${{email}} | ${{phone}} | ${{addr1}}${{addr2?" "+addr2:""}}, ${{city}} ${{state}} ${{zip}} | `+CART.map(p=>`${{p.n}} SKU#${{p.c}} x${{p.qty}} @$${{p.p}}`).join(" | ")+` | TOTAL: ${{fmt(cartTotal())}}`;
-  window.open(SQUARE_PAYMENT_LINK+"?note="+encodeURIComponent(note.substring(0,500)),"_blank");
-  document.getElementById("success-overlay").classList.add("show");
+  // Build an order reference + the full order, and stash it in the browser.
+  // The thank-you page (reached only AFTER a successful Square payment) reads
+  // this and emails the full details. Only a short reference goes in the URL.
+  const now=new Date();
+  const ymd=now.getFullYear().toString()+String(now.getMonth()+1).padStart(2,"0")+String(now.getDate()).padStart(2,"0");
+  const ref="DCN-"+ymd+"-"+Math.random().toString(36).slice(2,6).toUpperCase();
+  const count=CART.reduce((s,i)=>s+i.qty,0);
+  const order={{
+    ref:ref,placed:now.toISOString(),
+    customer:{{fname,lname,email,phone,addr1,addr2,city,state,zip}},
+    items:CART.map(p=>({{n:p.n,c:p.c,qty:p.qty,p:p.p}})),
+    count:count,total:fmt(cartTotal())
+  }};
+  try{{localStorage.setItem("dcn_pending_order_v1",JSON.stringify(order));}}catch(_){{}}
+  // Short, PII-free note for Square: reference, totals, and SKU×qty per item.
+  const skus=CART.map(p=>`${{p.c}}×${{p.qty}}`).join(", ");
+  const note=`Order ${{ref}} | ${{count}} item(s) | ${{fmt(cartTotal())}} | ${{skus}}`;
+  // Clear the cart now; the order is safely saved for the thank-you page.
   closeDrawer();CART=[];updateCartUI();
   document.querySelectorAll(".add-btn").forEach(b=>{{b.textContent="+ Add to Cart";b.classList.remove("added");}});
   document.querySelectorAll(".in-cart-flag").forEach(f=>f.classList.remove("show"));
   if(openProduct)syncModalBtn();
+  // Hand off to Square in the same tab so its post-payment redirect lands back
+  // on thankyou.html. (Configure that redirect in your Square Dashboard.)
+  window.location.href=SQUARE_PAYMENT_LINK+"?note="+encodeURIComponent(note);
 }}
 function syncModalBtn(){{const btn=document.getElementById("m-add-btn");if(!openProduct)return;if(isInCart(openProduct.c)){{btn.textContent="✓ In Cart";btn.classList.add("added");}}else{{btn.textContent="+ Add to Cart";btn.classList.remove("added");}}}}
 function addFromModal(){{if(!openProduct)return;isInCart(openProduct.c)?removeFromCart(openProduct.c):addToCart(openProduct);syncModalBtn();}}
 function openM(idx){{
-  const p=fil[idx];if(!p)return;openProduct=p;pendingIdx=PRODUCTS.indexOf(p);
+  const p=fil[idx];if(!p)return;openProduct=p;pendingIdx=p.i;
   document.getElementById("msk").textContent="SKU# "+p.c;document.getElementById("mbrand").textContent=p.b;
   document.getElementById("mtitle").textContent=p.n;document.getElementById("mprice").textContent=p.p?"$"+p.p:"—";
   document.getElementById("mdesc").innerHTML="<span class='dload'>Loading description…</span>";syncModalBtn();
@@ -446,8 +542,20 @@ function openM(idx){{
   if(imgs.length){{gm.src=imgs[0];gm.style.display="block";if(imgs.length>1){{gt.style.display="flex";gt.innerHTML=imgs.map((s,i)=>`<img class="gthumb ${{i===0?"on":""}}" src="${{e(s)}}" onclick="setImg(this,'${{e(s)}}')" loading="lazy">`).join("");}}else{{gt.style.display="none";}}}}else{{gm.style.display="none";gt.style.display="none";}}
   document.getElementById("mbg").classList.add("open");document.body.style.overflow="hidden";loadDescs();
 }}
-function loadDescs(){{if(DESCS){{showDesc();return;}}if(descLoading)return;descLoading=true;fetch("descs.json").then(r=>r.json()).then(d=>{{DESCS=d;showDesc();}}).catch(()=>{{document.getElementById("mdesc").innerHTML="<span class='dload'>Description unavailable.</span>";}});}}
-function showDesc(){{if(pendingIdx===null||!DESCS)return;const d=DESCS[pendingIdx]||"";document.getElementById("mdesc").innerHTML=d?`<div>${{d}}</div>`:"<span class='dload'>No description available.</span>";}}
+function loadDescs(){{
+  if(pendingIdx===null){{return;}}
+  const ck=Math.floor(pendingIdx/DC);
+  if(DESC_CACHE[ck]){{showDesc();return;}}
+  if(descLoading)return;descLoading=true;
+  fetch("descs/"+ck+".json").then(r=>r.json()).then(d=>{{DESC_CACHE[ck]=d;descLoading=false;showDesc();}}).catch(()=>{{descLoading=false;document.getElementById("mdesc").innerHTML="<span class='dload'>Description unavailable.</span>";}});
+}}
+function showDesc(){{
+  if(pendingIdx===null)return;
+  const ck=Math.floor(pendingIdx/DC),chunk=DESC_CACHE[ck];
+  if(!chunk)return;
+  const d=chunk[pendingIdx%DC]||"";
+  document.getElementById("mdesc").innerHTML=d?`<div>${{d}}</div>`:"<span class='dload'>No description available.</span>";
+}}
 function setImg(el,src){{document.getElementById("gmain").src=src;document.querySelectorAll(".gthumb").forEach(t=>t.classList.remove("on"));el.classList.add("on");}}
 function closeM(){{document.getElementById("mbg").classList.remove("open");document.body.style.overflow="";}}
 function bgClick(ev){{if(ev.target===document.getElementById("mbg"))closeM();}}
@@ -472,3 +580,98 @@ setTimeout(()=>{{
 with open("index.html","w",encoding="utf-8") as f:
     f.write(html_out)
 print(f"Built index.html ({os.path.getsize('index.html')//1024}KB) — {total} products, {len(brands)} brands")
+
+# ── Thank-you / order-confirmation page ──────────────────────────────────────
+# Square redirects here after a successful payment. It reads the order that the
+# catalog stashed in the browser and emails the full details to ORDER_EMAIL via
+# Web3Forms, then clears it so a refresh can't double-send.
+thankyou_out = f"""<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+<meta charset=\"UTF-8\">
+<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, viewport-fit=cover\">
+<meta name=\"robots\" content=\"noindex\">
+<title>Order Confirmed — DiecastNeeds.com</title>
+<link rel=\"icon\" href=\"logo.png\">
+<link href=\"https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap\" rel=\"stylesheet\">
+<style>
+:root{{--bg:#0d0f1a;--surface:#13151f;--card:#1a1c2a;--border:#252836;--border2:#2e3148;--pink:#ff2d6b;--pink-dim:#cc1f55;--white:#f5f5f5;--muted:#6b6f85;--text:#e8eaf2;--green:#22c55e;}}
+*{{box-sizing:border-box;margin:0;padding:0;}}
+body{{background:var(--bg);color:var(--text);font-family:\"DM Sans\",sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:48px 24px;text-align:center;}}
+.logo{{height:80px;width:80px;object-fit:contain;border-radius:14px;margin-bottom:6px;}}
+.icon{{font-size:4rem;}}
+h1{{font-family:\"Bebas Neue\",sans-serif;font-size:2.4rem;letter-spacing:4px;color:var(--green);}}
+p{{color:var(--muted);font-size:0.95rem;line-height:1.7;max-width:420px;}}
+.ref{{font-family:\"Courier New\",monospace;color:var(--white);background:var(--card);border:1px solid var(--border2);padding:10px 18px;border-radius:10px;font-size:1rem;letter-spacing:1px;}}
+.detail{{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;max-width:420px;width:100%;text-align:left;font-size:0.86rem;color:var(--text);}}
+.detail .row{{display:flex;justify-content:space-between;gap:10px;padding:4px 0;}}
+.detail .row span:first-child{{color:var(--muted);}}
+.btn{{margin-top:8px;padding:14px 34px;background:var(--pink);border:none;color:#fff;border-radius:10px;font-family:\"DM Sans\",sans-serif;font-size:1rem;font-weight:500;cursor:pointer;text-decoration:none;}}
+.btn:hover{{background:var(--pink-dim);}}
+.muted-note{{font-size:0.75rem;color:var(--muted);max-width:420px;}}
+</style>
+</head>
+<body>
+<img class=\"logo\" src=\"{logo_src}\" alt=\"DiecastNeeds\">
+<div class=\"icon\">✅</div>
+<h1 id=\"headline\">Thank You!</h1>
+<p id=\"sub\">Your payment was received. We're getting your order ready to ship.</p>
+<div class=\"ref\" id=\"refbox\" style=\"display:none;\"></div>
+<div class=\"detail\" id=\"detail\" style=\"display:none;\"></div>
+<p class=\"muted-note\">A receipt has been emailed to you by Square. Questions? Email {ORDER_EMAIL}.</p>
+<a class=\"btn\" href=\"/\">← Back to Catalog</a>
+<script>
+const ACCESS_KEY=\"{WEB3FORMS_ACCESS_KEY}\";
+const ORDER_EMAIL=\"{ORDER_EMAIL}\";
+const KEY_SET=ACCESS_KEY && ACCESS_KEY.indexOf(\"PASTE-\")===-1;
+function qp(){{const o={{}};new URLSearchParams(location.search).forEach((v,k)=>o[k]=v);return o;}}
+function esc(s){{return String(s==null?\"\":s);}}
+(function(){{
+  let order=null;
+  try{{const r=localStorage.getItem(\"dcn_pending_order_v1\");if(r)order=JSON.parse(r);}}catch(_){{}}
+  if(!order){{return;}}  // direct visit or already processed — show generic thanks
+  // Show the customer their order summary
+  document.getElementById(\"refbox\").style.display=\"block\";
+  document.getElementById(\"refbox\").textContent=\"Order \"+order.ref;
+  const c=order.customer;
+  const itemsHtml=order.items.map(i=>`<div class=\"row\"><span>${{esc(i.n)}} (SKU ${{esc(i.c)}}) ×${{i.qty}}</span><span>$${{esc(i.p)}}</span></div>`).join(\"\");
+  document.getElementById(\"detail\").style.display=\"block\";
+  document.getElementById(\"detail\").innerHTML=itemsHtml+`<div class=\"row\" style=\"border-top:1px solid var(--border);margin-top:8px;padding-top:10px;font-weight:600;color:#fff;\"><span>Total</span><span>${{esc(order.total)}}</span></div>`;
+  // Email the full order to the store (only after this page loads = after payment)
+  const sq=qp();
+  const itemsText=order.items.map(i=>`• ${{i.n}} (SKU ${{i.c}}) ×${{i.qty}} @ $${{i.p}}`).join(\"\\n\");
+  const payload={{
+    access_key:ACCESS_KEY,
+    subject:\"New Order \"+order.ref+\" — DiecastNeeds.com\",
+    from_name:\"DiecastNeeds Store\",
+    replyto:c.email,
+    order_reference:order.ref,
+    placed_at:order.placed,
+    customer_name:c.fname+\" \"+c.lname,
+    customer_email:c.email,
+    customer_phone:c.phone,
+    shipping_address:[c.addr1,c.addr2,c.city+\", \"+c.state+\" \"+c.zip].filter(Boolean).join(\"\\n\"),
+    item_count:order.count,
+    order_total:order.total,
+    items:itemsText,
+    square_transaction:sq.transactionId||sq.orderId||sq.referenceId||\"(see Square dashboard)\"
+  }};
+  function done(){{ try{{localStorage.removeItem(\"dcn_pending_order_v1\");}}catch(_){{}} }}
+  if(!KEY_SET){{
+    console.warn(\"Web3Forms access key not set — order email skipped. Order:\",payload);
+    return; // leave order in storage so it can be recovered once the key is set
+  }}
+  fetch(\"https://api.web3forms.com/submit\",{{
+    method:\"POST\",
+    headers:{{\"Content-Type\":\"application/json\",\"Accept\":\"application/json\"}},
+    body:JSON.stringify(payload)
+  }}).then(r=>r.json()).then(d=>{{ if(d && d.success){{done();}} }})
+    .catch(e=>console.error(\"Order email failed:\",e));
+}})();
+</script>
+</body>
+</html>"""
+
+with open("thankyou.html","w",encoding="utf-8") as f:
+    f.write(thankyou_out)
+print(f"Built thankyou.html ({os.path.getsize('thankyou.html')//1024}KB)")
