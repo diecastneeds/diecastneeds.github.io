@@ -140,6 +140,58 @@ ORDER_EMAIL = "sales@ultimategarageeventstx.com"
 # website after checkout" setting.
 THANKYOU_URL = "https://diecastneeds.com/thankyou.html"
 
+# ── Business / contact info (shown in footer + on the info pages) ──
+# Confirm the phone number — pulled from the Ultimate Garage Events listing.
+BUSINESS_NAME = "Ultimate Garage Events TX LLC"
+BUSINESS_LOCATION = "Dallas, Texas"
+CONTACT_EMAIL = "sales@ultimategarageeventstx.com"
+CONTACT_PHONE = "(888) 505-3125"
+SUPPORT_HOURS = "Monday–Friday, 9:00 AM – 5:00 PM CT"
+
+# ── Sales tax ──
+# Texas requires collecting on orders shipped TO Texas. Dallas combined rate is
+# 8.25%. Orders shipped outside TX are not taxed (no nexus elsewhere). Confirm
+# with the Texas Comptroller / your accountant as you grow.
+TAX_RATE = 0.0825   # 8.25%
+TAX_STATE = "TX"
+
+
+# ── Events brand + social links ──
+EVENTS_URL = "https://ultimategarageeventstx.com"
+SOCIAL = {
+    "Instagram": "https://www.instagram.com/ultimategarageeventstx/",
+    "Facebook":  "https://www.facebook.com/p/Ultimate-Garage-Events-TX-100075534986358/",
+    "TikTok":    "",   # paste your TikTok profile URL here
+    "YouTube":   "",   # paste your YouTube channel URL here
+}
+
+# Shared footer used on the catalog and every info page.
+_tel = CONTACT_PHONE.replace(' ','').replace('(','').replace(')','').replace('-','')
+social_links_html = "".join(
+    f'<a href="{u}" target="_blank" rel="noopener">{name}</a>'
+    for name, u in SOCIAL.items() if u
+)
+_social_row = f'\n    <div class="footer-links footer-social">{social_links_html}</div>' if social_links_html else ""
+footer_html = f"""<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-links">
+      <a href="/">Catalog</a>
+      <a href="about.html">About</a>
+      <a href="events.html">Events</a>
+      <a href="contact.html">Contact</a>
+      <a href="shipping.html">Shipping</a>
+      <a href="returns.html">Returns &amp; Exchanges</a>
+      <a href="privacy.html">Privacy</a>
+    </div>{_social_row}
+    <div class="footer-contact">
+      <a href="mailto:{CONTACT_EMAIL}">{CONTACT_EMAIL}</a>
+      <span>&middot;</span>
+      <a href="tel:{_tel}">{CONTACT_PHONE}</a>
+    </div>
+    <div class="footer-legal">Free shipping on every order to U.S. addresses &nbsp;&middot;&nbsp; &copy; 2026 {BUSINESS_NAME}. All rights reserved.</div>
+  </div>
+</footer>"""
+
 html_out = f"""<!DOCTYPE html>
 <html lang=\"en\">
 <head>
@@ -316,7 +368,7 @@ select:focus{{border-color:var(--pink);outline:none;}}
 #loader{{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:999;font-family:\"Bebas Neue\",sans-serif;font-size:1.4rem;letter-spacing:4px;color:var(--pink);}}
 .spin{{width:40px;height:40px;border:3px solid var(--border2);border-top-color:var(--pink);border-radius:50%;animation:spin .7s linear infinite;}}
 @keyframes spin{{to{{transform:rotate(360deg);}}}}
-</style>
+.site-footer{{margin-top:0;background:var(--surface);border-top:2px solid var(--pink);padding:28px 20px;padding-bottom:max(28px,env(safe-area-inset-bottom));}}.footer-inner{{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;}}.footer-links{{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 22px;}}.footer-links a{{color:var(--text);text-decoration:none;font-size:0.85rem;letter-spacing:.3px;transition:color .15s;}}.footer-links a:hover{{color:var(--pink);}}.footer-contact{{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;font-size:0.85rem;}}.footer-contact a{{color:var(--pink);text-decoration:none;}}.footer-contact a:hover{{text-decoration:underline;}}.footer-contact span{{color:var(--muted);}}.footer-legal{{color:var(--muted);font-size:0.72rem;line-height:1.6;}}</style>
 </head>
 <body>
 <div id=\"loader\"><div class=\"spin\"></div>LOADING CATALOG</div>
@@ -364,7 +416,7 @@ select:focus{{border-color:var(--pink);outline:none;}}
   <div class=\"dpanel on\" id=\"panel-cart\">
     <div class=\"drawer-items\" id=\"drawer-items\"><div class=\"drawer-empty\"><div class=\"de-icon\">🛒</div><p>Your cart is empty</p></div></div>
     <div class=\"cart-footer\" id=\"cart-footer\" style=\"display:none;\">
-      <div class=\"cart-total\"><span class=\"cart-total-label\">Order Total</span><span class=\"cart-total-val\" id=\"cart-total\">$0.00</span></div>
+      <div class=\"cart-total\"><span class=\"cart-total-label\">Subtotal</span><span class=\"cart-total-val\" id=\"cart-total\">$0.00</span></div><div style=\"font-size:0.72rem;color:var(--muted);margin:-6px 0 12px;\">Tax &amp; final total shown at checkout</div>
       <button class=\"checkout-btn\" onclick=\"switchTab('checkout')\">Proceed to Checkout →</button>
     </div>
   </div>
@@ -379,7 +431,7 @@ select:focus{{border-color:var(--pink);outline:none;}}
         <div class=\"fi\"><label>Street Address *</label><input type=\"text\" id=\"co-addr1\" placeholder=\"123 Main St\"></div>
         <div class=\"fi\"><label>Apt / Suite</label><input type=\"text\" id=\"co-addr2\" placeholder=\"Optional\"></div>
         <div class=\"fg\"><div class=\"fi\"><label>City *</label><input type=\"text\" id=\"co-city\" placeholder=\"Houston\"></div>
-          <div class=\"fi\"><label>State *</label><select class=\"fi-sel\" id=\"co-state\"><option value=\"\">State</option><option>AL</option><option>AK</option><option>AZ</option><option>AR</option><option>CA</option><option>CO</option><option>CT</option><option>DE</option><option>FL</option><option>GA</option><option>HI</option><option>ID</option><option>IL</option><option>IN</option><option>IA</option><option>KS</option><option>KY</option><option>LA</option><option>ME</option><option>MD</option><option>MA</option><option>MI</option><option>MN</option><option>MS</option><option>MO</option><option>MT</option><option>NE</option><option>NV</option><option>NH</option><option>NJ</option><option>NM</option><option>NY</option><option>NC</option><option>ND</option><option>OH</option><option>OK</option><option>OR</option><option>PA</option><option>RI</option><option>SC</option><option>SD</option><option>TN</option><option selected>TX</option><option>UT</option><option>VT</option><option>VA</option><option>WA</option><option>WV</option><option>WI</option><option>WY</option></select></div>
+          <div class=\"fi\"><label>State *</label><select class=\"fi-sel\" id=\"co-state\" onchange=\"renderOrderSummary()\"><option value=\"\">State</option><option>AL</option><option>AK</option><option>AZ</option><option>AR</option><option>CA</option><option>CO</option><option>CT</option><option>DE</option><option>FL</option><option>GA</option><option>HI</option><option>ID</option><option>IL</option><option>IN</option><option>IA</option><option>KS</option><option>KY</option><option>LA</option><option>ME</option><option>MD</option><option>MA</option><option>MI</option><option>MN</option><option>MS</option><option>MO</option><option>MT</option><option>NE</option><option>NV</option><option>NH</option><option>NJ</option><option>NM</option><option>NY</option><option>NC</option><option>ND</option><option>OH</option><option>OK</option><option>OR</option><option>PA</option><option>RI</option><option>SC</option><option>SD</option><option>TN</option><option selected>TX</option><option>UT</option><option>VT</option><option>VA</option><option>WA</option><option>WV</option><option>WI</option><option>WY</option></select></div>
         </div>
         <div class=\"fi\"><label>ZIP Code *</label><input type=\"text\" id=\"co-zip\" placeholder=\"77001\" maxlength=\"10\"></div>
       </div>
@@ -396,12 +448,14 @@ select:focus{{border-color:var(--pink);outline:none;}}
   <p>Square is opening in a new tab. Complete payment there and you'll receive a receipt by email.</p>
   <button class=\"success-back\" onclick=\"document.getElementById('success-overlay').classList.remove('show')\">← Back to Catalog</button>
 </div>
+{footer_html}
 <script>
 const SQUARE_PAYMENT_LINK=\"{SQUARE_PAYMENT_LINK}\";
 const W=[];
 {p_scripts}
 const PRODUCTS=W.flat();
 const PS=40;
+const TAX_RATE={TAX_RATE};const TAX_STATE="{TAX_STATE}";const TAX_LABEL="Texas Tax ({TAX_RATE*100:g}%)";
 const DC={CHUNK};
 const DESC_CACHE={{}};
 const CART_KEY="dcn_cart_v1";
@@ -465,6 +519,9 @@ function removeFromCart(code){{
 }}
 function changeQty(code,delta){{const item=CART.find(i=>i.c===code);if(!item)return;item.qty=Math.max(1,item.qty+delta);updateCartUI();renderCartItems();}}
 function cartTotal(){{return CART.reduce((s,i)=>s+(parseFloat(i.p)||0)*i.qty,0);}}
+function selState(){{const el=document.getElementById("co-state");return el?el.value:"";}}
+function taxAmt(){{return selState()===TAX_STATE?cartTotal()*TAX_RATE:0;}}
+function grandTotal(){{return cartTotal()+taxAmt();}}
 function updateCartUI(){{
   saveCart();
   const total=CART.reduce((s,i)=>s+i.qty,0);
@@ -485,7 +542,7 @@ function renderCartItems(){{
 function renderOrderSummary(){{
   const el=document.getElementById("co-summary");if(!el)return;
   if(!CART.length){{el.innerHTML="<div style='color:var(--muted);font-size:0.8rem;text-align:center;padding:8px 0;'>No items in cart</div>";return;}}
-  el.innerHTML=CART.map(p=>`<div class="os-row"><span class="os-name">${{e(p.n)}}</span><span style="white-space:nowrap;">×${{p.qty}} ${{fmt(parseFloat(p.p)*p.qty)}}</span></div>`).join("")+`<div class="os-row total"><span>Total</span><span>${{fmt(cartTotal())}}</span></div>`;
+  el.innerHTML=CART.map(p=>`<div class="os-row"><span class="os-name">${{e(p.n)}}</span><span style="white-space:nowrap;">×${{p.qty}} ${{fmt(parseFloat(p.p)*p.qty)}}</span></div>`).join("")+`<div class="os-row"><span>Subtotal</span><span>${{fmt(cartTotal())}}</span></div>`+(taxAmt()>0?`<div class="os-row"><span>${{TAX_LABEL}}</span><span>${{fmt(taxAmt())}}</span></div>`:(selState()?"":`<div class="os-row"><span>Tax</span><span>Select state</span></div>`))+`<div class="os-row total"><span>Total</span><span>${{fmt(grandTotal())}}</span></div>`;
 }}
 function switchTab(tab){{
   ["cart","checkout"].forEach(t=>{{document.getElementById("tab-"+t).classList.toggle("on",t===tab);document.getElementById("panel-"+t).classList.toggle("on",t===tab);}});
@@ -516,12 +573,12 @@ function placeOrder(){{
     ref:ref,placed:now.toISOString(),
     customer:{{fname,lname,email,phone,addr1,addr2,city,state,zip}},
     items:CART.map(p=>({{n:p.n,c:p.c,qty:p.qty,p:p.p}})),
-    count:count,total:fmt(cartTotal())
+    count:count,subtotal:fmt(cartTotal()),tax:fmt(taxAmt()),taxLabel:(taxAmt()>0?TAX_LABEL:""),total:fmt(grandTotal())
   }};
   try{{localStorage.setItem("dcn_pending_order_v1",JSON.stringify(order));}}catch(_){{}}
   // Short, PII-free note for Square: reference, totals, and SKU×qty per item.
   const skus=CART.map(p=>`${{p.c}}×${{p.qty}}`).join(", ");
-  const note=`Order ${{ref}} | ${{count}} item(s) | ${{fmt(cartTotal())}} | ${{skus}}`;
+  const note=`Order ${{ref}} | ${{count}} item(s) | ${{fmt(grandTotal())}} | ${{skus}}`;
   // Clear the cart now; the order is safely saved for the thank-you page.
   closeDrawer();CART=[];updateCartUI();
   document.querySelectorAll(".add-btn").forEach(b=>{{b.textContent="+ Add to Cart";b.classList.remove("added");}});
@@ -636,7 +693,7 @@ function esc(s){{return String(s==null?\"\":s);}}
   const c=order.customer;
   const itemsHtml=order.items.map(i=>`<div class=\"row\"><span>${{esc(i.n)}} (SKU ${{esc(i.c)}}) ×${{i.qty}}</span><span>$${{esc(i.p)}}</span></div>`).join(\"\");
   document.getElementById(\"detail\").style.display=\"block\";
-  document.getElementById(\"detail\").innerHTML=itemsHtml+`<div class=\"row\" style=\"border-top:1px solid var(--border);margin-top:8px;padding-top:10px;font-weight:600;color:#fff;\"><span>Total</span><span>${{esc(order.total)}}</span></div>`;
+  document.getElementById(\"detail\").innerHTML=itemsHtml+`<div class=\"row\"><span>Subtotal</span><span>${{esc(order.subtotal||order.total)}}</span></div>`+(order.tax&&order.taxLabel?`<div class=\"row\"><span>${{esc(order.taxLabel)}}</span><span>${{esc(order.tax)}}</span></div>`:"")+`<div class=\"row\" style=\"border-top:1px solid var(--border);margin-top:8px;padding-top:10px;font-weight:600;color:#fff;\"><span>Total</span><span>${{esc(order.total)}}</span></div>`;
   // Email the full order to the store (only after this page loads = after payment)
   const sq=qp();
   const itemsText=order.items.map(i=>`• ${{i.n}} (SKU ${{i.c}}) ×${{i.qty}} @ $${{i.p}}`).join(\"\\n\");
@@ -652,6 +709,8 @@ function esc(s){{return String(s==null?\"\":s);}}
     customer_phone:c.phone,
     shipping_address:[c.addr1,c.addr2,c.city+\", \"+c.state+\" \"+c.zip].filter(Boolean).join(\"\\n\"),
     item_count:order.count,
+    subtotal:order.subtotal||"",
+    tax:(order.tax&&order.taxLabel?order.taxLabel+": "+order.tax:"No tax (shipped outside TX)"),
     order_total:order.total,
     items:itemsText,
     square_transaction:sq.transactionId||sq.orderId||sq.referenceId||\"(see Square dashboard)\"
@@ -675,3 +734,179 @@ function esc(s){{return String(s==null?\"\":s);}}
 with open("thankyou.html","w",encoding="utf-8") as f:
     f.write(thankyou_out)
 print(f"Built thankyou.html ({os.path.getsize('thankyou.html')//1024}KB)")
+
+# ── Static info pages (About / Contact / Shipping / Returns / Privacy) ────────
+# Each shares the catalog's dark theme and the same footer. Edit the wording
+# below freely — these are your store's policies in your own voice.
+def info_page(slug, page_title, body_html):
+    css = (
+        ":root{--bg:#0d0f1a;--surface:#13151f;--card:#1a1c2a;--border:#252836;"
+        "--border2:#2e3148;--pink:#ff2d6b;--pink-dim:#cc1f55;--white:#f5f5f5;"
+        "--muted:#6b6f85;--text:#e8eaf2;--green:#22c55e;}"
+        "*{box-sizing:border-box;margin:0;padding:0;}"
+        "body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;"
+        "min-height:100vh;display:flex;flex-direction:column;line-height:1.7;}"
+        "header{background:var(--surface);border-bottom:2px solid var(--pink);"
+        "padding:12px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:50;}"
+        ".logo-img{height:56px;width:56px;object-fit:contain;border-radius:10px;}"
+        ".site-name{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;"
+        "color:var(--white);text-decoration:none;}"
+        ".site-name span{color:var(--pink);}"
+        ".back{margin-left:auto;color:var(--pink);text-decoration:none;font-size:0.85rem;}"
+        ".back:hover{text-decoration:underline;}"
+        "main{flex:1;max-width:760px;margin:0 auto;padding:40px 22px 60px;width:100%;}"
+        "h1{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:2px;"
+        "color:var(--white);margin-bottom:6px;}"
+        ".updated{color:var(--muted);font-size:0.78rem;margin-bottom:26px;}"
+        "h2{font-size:1.1rem;color:var(--white);margin:26px 0 8px;}"
+        "p{margin-bottom:14px;color:#c7cbdb;}"
+        "ul{margin:0 0 16px 22px;color:#c7cbdb;}"
+        "li{margin-bottom:8px;}"
+        "a{color:var(--pink);}"
+        ".card{background:var(--card);border:1px solid var(--border2);border-radius:12px;"
+        "padding:18px 20px;margin-bottom:16px;}"
+        ".card a{font-weight:500;}"
+        + footer_css_for_pages
+    )
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>{page_title} — DiecastNeeds.com</title>
+<meta name="description" content="{page_title} for DiecastNeeds.com — diecast model cars with free U.S. shipping.">
+<link rel="icon" href="logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>{css}</style>
+</head>
+<body>
+<header>
+  <img class="logo-img" src="{logo_src}" alt="DiecastNeeds">
+  <a class="site-name" href="/">DiecastNeeds<span>.com</span></a>
+  <a class="back" href="/">← Back to Catalog</a>
+</header>
+<main>
+{body_html}
+</main>
+{footer_html}
+</body>
+</html>"""
+
+# Footer CSS for the standalone pages (plain braces — not inside an f-string template).
+footer_css_for_pages = (
+ ".site-footer{background:var(--surface);border-top:2px solid var(--pink);"
+ "padding:28px 20px;padding-bottom:max(28px,env(safe-area-inset-bottom));}"
+ ".footer-inner{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;}"
+ ".footer-links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 22px;}"
+ ".footer-links a{color:var(--text);text-decoration:none;font-size:0.85rem;letter-spacing:.3px;}"
+ ".footer-links a:hover{color:var(--pink);}"
+ ".footer-contact{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;font-size:0.85rem;}"
+ ".footer-contact a{color:var(--pink);text-decoration:none;}"
+ ".footer-contact span{color:var(--muted);}"
+ ".footer-legal{color:var(--muted);font-size:0.72rem;line-height:1.6;}"
+)
+
+POLICY_UPDATED = "Last updated: June 2026"
+
+about_body = f"""<h1>About DiecastNeeds.com</h1>
+<div class="updated">{POLICY_UPDATED}</div>
+<p>DiecastNeeds.com is an online diecast model store operated by {BUSINESS_NAME}, based in {BUSINESS_LOCATION}. We're car enthusiasts first, and we built this shop to make it easy to find quality diecast models at fair prices.</p>
+<p>Our catalog features thousands of officially licensed diecast cars, trucks, motorcycles, and aircraft across popular scales (1/64, 1/24, 1/18 and more) from trusted manufacturers like Maisto, Greenlight, Auto World, and others.</p>
+<h2>Why shop with us</h2>
+<ul>
+<li><strong>Free shipping</strong> on every order to U.S. addresses.</li>
+<li>A large, regularly updated selection of in-demand models.</li>
+<li>Secure checkout handled by Square — we never see or store your card details.</li>
+<li>Real people behind the store. Questions? <a href="contact.html">Get in touch</a> any time.</li>
+</ul>
+<p>Thanks for supporting a small business and sharing the hobby with us.</p>"""
+
+contact_body = f"""<h1>Contact Us</h1>
+<div class="updated">We're happy to help with orders, products, or anything else.</div>
+<div class="card">
+<p style="margin-bottom:8px;"><strong>Email:</strong> <a href="mailto:{CONTACT_EMAIL}">{CONTACT_EMAIL}</a></p>
+<p style="margin-bottom:8px;"><strong>Phone:</strong> <a href="tel:{CONTACT_PHONE.replace(' ','').replace('(','').replace(')','').replace('-','')}">{CONTACT_PHONE}</a></p>
+<p style="margin-bottom:8px;"><strong>Hours:</strong> {SUPPORT_HOURS}</p>
+<p style="margin-bottom:0;"><strong>Location:</strong> {BUSINESS_LOCATION}</p>
+</div>
+<h2>Order questions</h2>
+<p>For the fastest help with an existing order, email us with your order number (it looks like <em>DCN-YYYYMMDD-XXXX</em>) and we'll get right back to you, usually within one business day.</p>"""
+
+shipping_body = f"""<h1>Shipping Policy</h1>
+<div class="updated">{POLICY_UPDATED}</div>
+<h2>Free U.S. shipping</h2>
+<p>Every order ships <strong>free</strong> via standard ground service to addresses within the United States. The price you see is the price you pay — shipping is already included.</p>
+<h2>Processing &amp; delivery</h2>
+<p>Orders are typically processed within 1–3 business days. Once shipped, standard ground delivery usually takes several business days depending on your location. Tracking is provided whenever it's available from the carrier.</p>
+<h2>U.S. addresses only</h2>
+<p>We ship to U.S. addresses only. If a package is sent to a U.S. freight forwarder and then re-shipped internationally, we cannot be responsible for any loss or damage that occurs after it leaves the original U.S. delivery address.</p>
+<h2>Sales tax</h2>
+<p>Orders shipped to Texas addresses include {TAX_RATE*100:g}% Texas sales tax, calculated and shown at checkout before you pay. Orders shipped outside Texas are not charged sales tax.</p>
+<h2>Questions</h2>
+<p>Email <a href="mailto:{CONTACT_EMAIL}">{CONTACT_EMAIL}</a> with any shipping questions.</p>"""
+
+returns_body = f"""<h1>Returns &amp; Exchanges</h1>
+<div class="updated">{POLICY_UPDATED}</div>
+<p>We want you to be happy with your order. Please read the conditions below — because of how our products are sourced and shipped, these terms are firm.</p>
+<h2>Timeframes</h2>
+<ul>
+<li><strong>Damaged or defective items:</strong> contact us <strong>within 48 hours of delivery</strong> so we can file a claim with the carrier. Reports made after that window cannot be honored.</li>
+<li><strong>Returns or exchanges:</strong> you must notify us with your reason <strong>within 14 days of delivery</strong>. Requests outside this window cannot be accepted.</li>
+</ul>
+<h2>Condition requirements</h2>
+<ul>
+<li>Items must be in original factory condition, in the original manufacturer's box, and packed exactly as they arrived.</li>
+<li>Please do not glue, modify, or repair any parts without our authorization. Items that have been glued or modified, or returned without the original box, cannot be accepted.</li>
+</ul>
+<h2>Shipping charges</h2>
+<p>Shipping and handling costs are non-refundable, <strong>except</strong> when we shipped the wrong item. In that case we'll cover return shipping and send the correct item, or issue a full refund if it's unavailable. Please report an incorrect item within one week of delivery.</p>
+<h2>Refused or undeliverable packages</h2>
+<p>Packages that are refused, unclaimed, or undeliverable will be canceled and refunded, less the original shipping cost.</p>
+<h2>How to start a return</h2>
+<p>Email <a href="mailto:{CONTACT_EMAIL}">{CONTACT_EMAIL}</a> with your order number and the reason for the return, and we'll guide you through the next steps.</p>"""
+
+privacy_body = f"""<h1>Privacy Policy</h1>
+<div class="updated">{POLICY_UPDATED}</div>
+<p>This policy explains what information we collect when you shop at DiecastNeeds.com and how we use it.</p>
+<h2>What we collect</h2>
+<p>When you place an order, we collect the details you provide: your name, email address, phone number, shipping address, and the items in your order. We use this only to process, ship, and support your order.</p>
+<h2>Payments</h2>
+<p>Payments are processed securely by Square. Your card details are entered on Square's secure checkout — we never see or store your full payment card information.</p>
+<h2>Who we share with</h2>
+<ul>
+<li><strong>Square</strong> — to process your payment.</li>
+<li><strong>Our fulfillment partner and shipping carriers</strong> — to pack and deliver your order.</li>
+</ul>
+<p>We do not sell your personal information, and we don't share it for unrelated marketing.</p>
+<h2>Your choices</h2>
+<p>You can ask us what information we have about you, or request that we delete it, by emailing <a href="mailto:{CONTACT_EMAIL}">{CONTACT_EMAIL}</a>.</p>"""
+
+events_cta = f'<p><a href="{EVENTS_URL}" target="_blank" rel="noopener" style="display:inline-block;background:var(--pink);color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:500;margin:6px 0 4px;">Visit UltimateGarageEventsTX.com &rarr;</a></p>'
+page_social = "".join(
+    f'<a href="{u}" target="_blank" rel="noopener" style="display:inline-block;border:1px solid var(--border2);color:var(--text);text-decoration:none;padding:9px 16px;border-radius:8px;margin:4px 8px 4px 0;font-size:0.9rem;">{name}</a>'
+    for name, u in SOCIAL.items() if u
+)
+events_body = f"""<h1>Car Shows &amp; Events</h1>
+<div class="updated">Presented by {BUSINESS_NAME}</div>
+<p>DiecastNeeds.com is the model-car side of {BUSINESS_NAME} &mdash; but for us, cars aren't just a hobby, they're a whole community. Through <strong>Ultimate Garage Events</strong> we host judged car &amp; truck shows, meets, and cruises across Texas.</p>
+<p>If you love the diecast in your display case, you'll love seeing the real thing in person. Come hang out, show off your ride, and talk cars with fellow enthusiasts.</p>
+<div class="card">
+<h2 style="margin-top:0;">Come check out a show</h2>
+<p>See upcoming events, locations, and tickets:</p>
+{events_cta}
+</div>
+<h2>Follow along</h2>
+<p>Event announcements, build features, and behind-the-scenes content:</p>
+<p>{page_social}</p>"""
+
+for slug, title, body in [
+    ("about", "About Us", about_body),
+    ("events", "Car Shows & Events", events_body),
+    ("contact", "Contact Us", contact_body),
+    ("shipping", "Shipping Policy", shipping_body),
+    ("returns", "Returns & Exchanges", returns_body),
+    ("privacy", "Privacy Policy", privacy_body),
+]:
+    with open(f"{slug}.html", "w", encoding="utf-8") as f:
+        f.write(info_page(slug, title, body))
+print("Built info pages: about, events, contact, shipping, returns, privacy")

@@ -49,7 +49,7 @@ function esc(s){return String(s==null?"":s);}
   const c=order.customer;
   const itemsHtml=order.items.map(i=>`<div class="row"><span>${esc(i.n)} (SKU ${esc(i.c)}) ×${i.qty}</span><span>$${esc(i.p)}</span></div>`).join("");
   document.getElementById("detail").style.display="block";
-  document.getElementById("detail").innerHTML=itemsHtml+`<div class="row" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px;font-weight:600;color:#fff;"><span>Total</span><span>${esc(order.total)}</span></div>`;
+  document.getElementById("detail").innerHTML=itemsHtml+`<div class="row"><span>Subtotal</span><span>${esc(order.subtotal||order.total)}</span></div>`+(order.tax&&order.taxLabel?`<div class="row"><span>${esc(order.taxLabel)}</span><span>${esc(order.tax)}</span></div>`:"")+`<div class="row" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px;font-weight:600;color:#fff;"><span>Total</span><span>${esc(order.total)}</span></div>`;
   // Email the full order to the store (only after this page loads = after payment)
   const sq=qp();
   const itemsText=order.items.map(i=>`• ${i.n} (SKU ${i.c}) ×${i.qty} @ $${i.p}`).join("\n");
@@ -65,6 +65,8 @@ function esc(s){return String(s==null?"":s);}
     customer_phone:c.phone,
     shipping_address:[c.addr1,c.addr2,c.city+", "+c.state+" "+c.zip].filter(Boolean).join("\n"),
     item_count:order.count,
+    subtotal:order.subtotal||"",
+    tax:(order.tax&&order.taxLabel?order.taxLabel+": "+order.tax:"No tax (shipped outside TX)"),
     order_total:order.total,
     items:itemsText,
     square_transaction:sq.transactionId||sq.orderId||sq.referenceId||"(see Square dashboard)"
