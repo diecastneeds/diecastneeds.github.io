@@ -1,7 +1,7 @@
 """
 Build script for DiecastNeeds.com Catalog
 - Reads the product export (products.zip preferred, products.xml fallback)
-- Applies 30% markup, rounds up to nearest .99
+- Applies 24% markup, rounds up to nearest .99
 - Embeds logo.png, outputs index.html + descs.json
 Daily update: push a new products.zip to GitHub — auto-rebuilds in ~60s.
 """
@@ -14,7 +14,7 @@ def markup_price(cost_str):
     try:
         cost = float(cost_str)
         if cost <= 0: return ""
-        marked = cost * 1.30
+        marked = cost * 1.24
         rounded = math.ceil(marked) - 0.01
         if rounded < marked: rounded += 1
         return f"{rounded:.2f}"
